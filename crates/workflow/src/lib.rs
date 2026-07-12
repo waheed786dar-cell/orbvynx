@@ -1,6 +1,9 @@
-//! ORBVYNX — workflow crate
-//! Placeholder implementation. See docs/ for architecture spec.
+pub mod error;
+pub mod graph;
+pub mod task;
+pub mod workflow;
 
-pub fn placeholder() {
-    tracing::info!("orbvynx-workflow loaded");
-}
+pub use error::{WorkflowError, WorkflowResult};
+pub use graph::TaskGraph;
+pub use task::{RetryPolicy, Task, TaskState, TimeoutPolicy};
+pub use workflow::{Workflow, WorkflowState};

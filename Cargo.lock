@@ -450,12 +450,15 @@ dependencies = [
 name = "orbvynx-workflow"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "chrono",
+ "orbvynx-kernel",
+ "orbvynx-planner",
  "serde",
  "serde_json",
  "thiserror",
+ "tokio",
+ "tokio-test",
  "tracing",
  "uuid",
 ]
