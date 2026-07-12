@@ -1,0 +1,27 @@
+[package]
+name = "orbvynx-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "orbvynx"
+path = "src/main.rs"
+
+[dependencies]
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+anyhow.workspace = true
+
+orbvynx-kernel = { path = "../../crates/kernel" }
+orbvynx-events = { path = "../../crates/events" }
+orbvynx-intent = { path = "../../crates/intent" }
+orbvynx-planner = { path = "../../crates/planner" }
+orbvynx-workflow = { path = "../../crates/workflow" }
+orbvynx-executor = { path = "../../crates/executor" }
+orbvynx-capability = { path = "../../crates/capability" }
+orbvynx-plugin-runtime = { path = "../../crates/plugin-runtime" }
+orbvynx-memory = { path = "../../crates/memory" }
+orbvynx-security = { path = "../../crates/security" }
