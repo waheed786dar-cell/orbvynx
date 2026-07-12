@@ -29,6 +29,21 @@ pub enum Commands {
         #[command(subcommand)]
         action: PluginAction,
     },
+
+    /// Compute a SHA-256 hash of text or a file
+    Hash {
+        /// Raw text to hash (mutually exclusive with --file)
+        text: Option<String>,
+        /// Path to a file to hash instead of raw text
+        #[arg(short, long)]
+        file: Option<String>,
+    },
+
+    /// Make HTTP requests via the built-in http capabilities
+    Http {
+        #[command(subcommand)]
+        action: HttpAction,
+    },
 }
 
 #[derive(Subcommand)]
@@ -48,4 +63,12 @@ pub enum GitAction {
 pub enum PluginAction {
     /// List all discovered plugins and their capability names
     List,
+}
+
+#[derive(Subcommand)]
+pub enum HttpAction {
+    /// Perform an HTTP GET request
+    Get {
+        url: String,
+    },
 }

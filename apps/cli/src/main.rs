@@ -1,9 +1,10 @@
 mod cli;
 
 use clap::Parser;
-use cli::{Cli, Commands, GitAction, PluginAction};
+use cli::{Cli, Commands, GitAction, HttpAction, PluginAction};
 use orbvynx_executor::capabilities::{
     FilesystemReadCapability, FilesystemWriteCapability, GitCommitCapability, GitPushCapability, GitStatusCapability,
+    HttpGetCapability, HttpPostCapability, Sha256Capability, ZipCompressCapability,
 };
 use orbvynx_executor::{CapabilityRegistry, Executor};
 use orbvynx_intent::{IntentEngine, IntentSource};
@@ -22,6 +23,10 @@ fn build_registry(cwd: PathBuf) -> CapabilityRegistry {
     registry.register(Arc::new(GitStatusCapability));
     registry.register(Arc::new(GitCommitCapability));
     registry.register(Arc::new(GitPushCapability));
+    registry.register(Arc::new(HttpGetCapability));
+    registry.register(Arc::new(HttpPostCapability));
+    registry.register(Arc::new(Sha256Capability));
+    registry.register(Arc::new(ZipCompressCapability));
     registry
 }
 
@@ -58,7 +63,10 @@ async fn run_goal(goal: String, required_capability: String, params: HashMap<Str
     let intent = intent_engine.intake(goal, IntentSource::Cli, session_id)?;
     println!("Intent: {} -> {}", intent.original_goal, intent.effective_goal());
 
-    let mut known: Vec<String> = vec!["git.status".into(), "git.commit".into(), "git.push".into()];
+    let mut known: Vec<String> = vec![
+        "git.status".into(), "git.commit".into(), "git.push".into(),
+        "http.get".into(), "http.post".into(), "hash.sha256".into(), "archive.compress".into(),
+    ];
     known.extend(plugins.iter().map(|(_, cap)| cap.clone()));
 
     let discovery = Arc::new(StaticCapabilityDiscovery::new(known));
@@ -147,6 +155,26 @@ async fn main() -> anyhow::Result<()> {
                         }
                     }
                 }
+            }
+        },
+
+        Commands::Hash { text, file } => {
+            let mut params = HashMap::new();
+            if let Some(path) = file {
+                params.insert("path".to_string(), serde_json::json!(path));
+            } else if let Some(t) = text {
+                params.insert("text".to_string(), serde_json::json!(t));
+            } else {
+                anyhow::bail!("provide either text or --file <path>");
+            }
+            run_goal("hash".to_string(), "hash.sha256".to_string(), params).await?;
+        }
+
+        Commands::Http { action } => match action {
+            HttpAction::Get { url } => {
+                let mut params = HashMap::new();
+                params.insert("url".to_string(), serde_json::json!(url));
+                run_goal("http get".to_string(), "http.get".to_string(), params).await?;
             }
         },
     }
