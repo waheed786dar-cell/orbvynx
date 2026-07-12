@@ -1,13 +1,21 @@
 pub mod android;
 pub mod archive;
 pub mod filesystem;
+pub mod fsops;
 pub mod git;
 pub mod hash;
 pub mod http;
+pub mod jsonops;
+pub mod system;
+pub mod text;
 
 pub use android::GradleBuildCapability;
 pub use archive::ZipCompressCapability;
 pub use filesystem::{FilesystemReadCapability, FilesystemWriteCapability};
+pub use fsops::{FileDeleteCapability, FileExistsCapability, ListDirectoryCapability};
 pub use git::{GitCommitCapability, GitPushCapability, GitStatusCapability};
 pub use hash::Sha256Capability;
 pub use http::{HttpGetCapability, HttpPostCapability};
+pub use jsonops::{JsonParseCapability, JsonQueryCapability};
+pub use system::{CurrentTimeCapability, EnvGetCapability, UuidGenerateCapability};
+pub use text::{Base64DecodeCapability, Base64EncodeCapability, RegexMatchCapability, UrlEncodeCapability};
