@@ -311,19 +311,15 @@ name = "orbvynx-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "orbvynx-capability",
- "orbvynx-events",
  "orbvynx-executor",
  "orbvynx-intent",
  "orbvynx-kernel",
- "orbvynx-memory",
  "orbvynx-planner",
- "orbvynx-plugin-runtime",
- "orbvynx-security",
  "orbvynx-workflow",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]
