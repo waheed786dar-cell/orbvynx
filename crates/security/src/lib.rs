@@ -1,6 +1,9 @@
-//! ORBVYNX — security crate
-//! Placeholder implementation. See docs/ for architecture spec.
+pub mod dispatcher;
+pub mod error;
+pub mod permissions;
+pub mod policy;
 
-pub fn placeholder() {
-    tracing::info!("orbvynx-security loaded");
-}
+pub use dispatcher::PermissionDispatcher;
+pub use error::{SecurityError, SecurityResult};
+pub use permissions::PermissionStore;
+pub use policy::SecurityPolicy;
