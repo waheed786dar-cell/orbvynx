@@ -4,6 +4,7 @@ use orbvynx_executor::capabilities::{
 use orbvynx_executor::{CapabilityRegistry, Executor};
 use orbvynx_intent::{IntentEngine, IntentSource};
 use orbvynx_planner::{PlanningContext, PlanningPipeline, PolicyConstraints, PolicyEvaluator, StaticCapabilityDiscovery};
+use orbvynx_plugin_runtime::{PluginCapability, PluginRegistry};
 use orbvynx_workflow::{Task, TaskGraph, Workflow};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -20,14 +21,39 @@ fn build_registry(cwd: PathBuf) -> CapabilityRegistry {
     registry
 }
 
-fn capability_for_goal(goal: &str) -> Vec<String> {
+async fn load_plugins(registry: &mut CapabilityRegistry, plugins_dir: PathBuf) -> Vec<String> {
+    let mut plugin_registry = PluginRegistry::new();
+    let loaded = plugin_registry.load_from_directory(plugins_dir).await.unwrap_or(0);
+
+    let mut names = Vec::new();
+    for name in plugin_registry.list() {
+        if let Some(plugin) = plugin_registry.get(&name) {
+            let capability_name = plugin.manifest.capability_name.clone();
+            registry.register(Arc::new(PluginCapability::new(plugin)));
+            names.push(capability_name);
+        }
+    }
+
+    if loaded > 0 {
+        println!("Loaded {loaded} plugin(s): {}", names.join(", "));
+    }
+    names
+}
+
+fn capability_for_goal(goal: &str, plugin_capabilities: &[String]) -> Vec<String> {
     let lower = goal.to_lowercase();
+
+    for plugin_cap in plugin_capabilities {
+        let short_name = plugin_cap.rsplit('.').next().unwrap_or(plugin_cap);
+        if lower.contains(short_name) {
+            return vec![plugin_cap.clone()];
+        }
+    }
+
     if lower.contains("push") {
         vec!["git.push".to_string()]
     } else if lower.contains("commit") {
         vec!["git.commit".to_string()]
-    } else if lower.contains("status") {
-        vec!["git.status".to_string()]
     } else {
         vec!["git.status".to_string()]
     }
@@ -45,18 +71,25 @@ async fn main() -> anyhow::Result<()> {
     let (kernel, boot_report) = orbvynx_kernel::Kernel::boot().await?;
     println!("ORBVYNX booted in {}ms", boot_report.total_millis);
 
+    let mut registry = build_registry(cwd.clone());
+    let plugins_dir = cwd.join("examples").join("plugins");
+    let plugin_capabilities = load_plugins(&mut registry, plugins_dir).await;
+
     let session_id = Uuid::new_v4();
     let intent_engine = IntentEngine::new(kernel.event_bus.clone());
     let intent = intent_engine.intake(goal.clone(), IntentSource::Cli, session_id)?;
     println!("Intent: {} -> {}", intent.original_goal, intent.effective_goal());
 
-    let required = capability_for_goal(&goal);
+    let required = capability_for_goal(&goal, &plugin_capabilities);
 
-    let discovery = Arc::new(StaticCapabilityDiscovery::new(vec![
+    let mut known_capabilities = vec![
         "git.status".to_string(),
         "git.commit".to_string(),
         "git.push".to_string(),
-    ]));
+    ];
+    known_capabilities.extend(plugin_capabilities.clone());
+
+    let discovery = Arc::new(StaticCapabilityDiscovery::new(known_capabilities));
     let policy = PolicyEvaluator::new(PolicyConstraints::default());
     let pipeline = PlanningPipeline::new(discovery, policy);
     let ctx = PlanningContext { internet_available: true, working_directory: cwd.to_string_lossy().to_string(), ..Default::default() };
@@ -72,7 +105,6 @@ async fn main() -> anyhow::Result<()> {
     workflow.validate()?;
     println!("Workflow validated: {} tasks", workflow.graph.tasks.len());
 
-    let registry = build_registry(cwd.clone());
     let executor = Executor::new(registry, kernel.event_bus.clone());
 
     for task in workflow.graph.tasks.values() {

@@ -22,3 +22,4 @@ orbvynx-intent = { path = "../../crates/intent" }
 orbvynx-planner = { path = "../../crates/planner" }
 orbvynx-workflow = { path = "../../crates/workflow" }
 orbvynx-executor = { path = "../../crates/executor" }
+orbvynx-plugin-runtime = { path = "../../crates/plugin-runtime" }

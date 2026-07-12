@@ -315,6 +315,7 @@ dependencies = [
  "orbvynx-intent",
  "orbvynx-kernel",
  "orbvynx-planner",
+ "orbvynx-plugin-runtime",
  "orbvynx-workflow",
  "serde_json",
  "tokio",
