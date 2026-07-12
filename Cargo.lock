@@ -316,6 +316,7 @@ dependencies = [
  "orbvynx-kernel",
  "orbvynx-planner",
  "orbvynx-workflow",
+ "serde_json",
  "tokio",
  "tracing",
  "tracing-subscriber",

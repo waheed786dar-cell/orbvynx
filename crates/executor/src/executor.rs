@@ -19,14 +19,14 @@ impl Executor {
         Self { registry, event_bus }
     }
 
-    pub async fn execute(&self, task: &Task) -> ExecutorResult<TaskResult> {
+    pub async fn execute(&self, task: &Task, params: HashMap<String, serde_json::Value>) -> ExecutorResult<TaskResult> {
         let capability = self.registry.get(&task.required_capability)
             .ok_or_else(|| ExecutorError::CapabilityNotFound(task.required_capability.clone()))?;
 
         self.publish("executor.task_started", &task.id);
 
         let start = Instant::now();
-        let input = CapabilityInput { params: HashMap::new() };
+        let input = CapabilityInput { params };
         let max_duration = Duration::from_secs(task.timeout_policy.max_seconds);
 
         let invocation = timeout(max_duration, capability.invoke(input)).await;
@@ -97,7 +97,7 @@ mod tests {
         let executor = Executor::new(registry, EventBus::default());
 
         let task = Task::new("t1", "echo test", "test.echo");
-        let result = executor.execute(&task).await.unwrap();
+        let result = executor.execute(&task, HashMap::new()).await.unwrap();
         assert_eq!(result.outcome, TaskOutcome::Success);
     }
 
@@ -108,7 +108,7 @@ mod tests {
         let executor = Executor::new(registry, EventBus::default());
 
         let task = Task::new("t2", "fail test", "test.fail");
-        let result = executor.execute(&task).await.unwrap();
+        let result = executor.execute(&task, HashMap::new()).await.unwrap();
         assert_eq!(result.outcome, TaskOutcome::Failed);
         assert!(result.error.is_some());
     }
@@ -119,6 +119,6 @@ mod tests {
         let executor = Executor::new(registry, EventBus::default());
 
         let task = Task::new("t3", "missing test", "test.missing");
-        assert!(executor.execute(&task).await.is_err());
+        assert!(executor.execute(&task, HashMap::new()).await.is_err());
     }
 }
