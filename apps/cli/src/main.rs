@@ -1,3 +1,7 @@
+mod cli;
+
+use clap::Parser;
+use cli::{Cli, Commands, GitAction, PluginAction};
 use orbvynx_executor::capabilities::{
     FilesystemReadCapability, FilesystemWriteCapability, GitCommitCapability, GitPushCapability, GitStatusCapability,
 };
@@ -21,80 +25,48 @@ fn build_registry(cwd: PathBuf) -> CapabilityRegistry {
     registry
 }
 
-async fn load_plugins(registry: &mut CapabilityRegistry, plugins_dir: PathBuf) -> Vec<String> {
+async fn load_plugins(registry: &mut CapabilityRegistry, plugins_dir: PathBuf) -> Vec<(String, String)> {
     let mut plugin_registry = PluginRegistry::new();
-    let loaded = plugin_registry.load_from_directory(plugins_dir).await.unwrap_or(0);
+    let _ = plugin_registry.load_from_directory(plugins_dir).await;
 
-    let mut names = Vec::new();
+    let mut loaded = Vec::new();
     for name in plugin_registry.list() {
         if let Some(plugin) = plugin_registry.get(&name) {
             let capability_name = plugin.manifest.capability_name.clone();
             registry.register(Arc::new(PluginCapability::new(plugin)));
-            names.push(capability_name);
+            loaded.push((name, capability_name));
         }
     }
-
-    if loaded > 0 {
-        println!("Loaded {loaded} plugin(s): {}", names.join(", "));
-    }
-    names
+    loaded
 }
 
-fn capability_for_goal(goal: &str, plugin_capabilities: &[String]) -> Vec<String> {
-    let lower = goal.to_lowercase();
-
-    for plugin_cap in plugin_capabilities {
-        let short_name = plugin_cap.rsplit('.').next().unwrap_or(plugin_cap);
-        if lower.contains(short_name) {
-            return vec![plugin_cap.clone()];
-        }
-    }
-
-    if lower.contains("push") {
-        vec!["git.push".to_string()]
-    } else if lower.contains("commit") {
-        vec!["git.commit".to_string()]
-    } else {
-        vec!["git.status".to_string()]
-    }
-}
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt::init();
-
-    let goal: String = std::env::args().skip(1).collect::<Vec<_>>().join(" ");
-    let goal = if goal.trim().is_empty() { "git status".to_string() } else { goal };
-
+async fn run_goal(goal: String, required_capability: String, params: HashMap<String, serde_json::Value>) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
-
     let (kernel, boot_report) = orbvynx_kernel::Kernel::boot().await?;
     println!("ORBVYNX booted in {}ms", boot_report.total_millis);
 
     let mut registry = build_registry(cwd.clone());
     let plugins_dir = cwd.join("examples").join("plugins");
-    let plugin_capabilities = load_plugins(&mut registry, plugins_dir).await;
+    let plugins = load_plugins(&mut registry, plugins_dir).await;
+    if !plugins.is_empty() {
+        let names: Vec<String> = plugins.iter().map(|(n, _)| n.clone()).collect();
+        println!("Loaded {} plugin(s): {}", plugins.len(), names.join(", "));
+    }
 
     let session_id = Uuid::new_v4();
     let intent_engine = IntentEngine::new(kernel.event_bus.clone());
-    let intent = intent_engine.intake(goal.clone(), IntentSource::Cli, session_id)?;
+    let intent = intent_engine.intake(goal, IntentSource::Cli, session_id)?;
     println!("Intent: {} -> {}", intent.original_goal, intent.effective_goal());
 
-    let required = capability_for_goal(&goal, &plugin_capabilities);
+    let mut known: Vec<String> = vec!["git.status".into(), "git.commit".into(), "git.push".into()];
+    known.extend(plugins.iter().map(|(_, cap)| cap.clone()));
 
-    let mut known_capabilities = vec![
-        "git.status".to_string(),
-        "git.commit".to_string(),
-        "git.push".to_string(),
-    ];
-    known_capabilities.extend(plugin_capabilities.clone());
-
-    let discovery = Arc::new(StaticCapabilityDiscovery::new(known_capabilities));
+    let discovery = Arc::new(StaticCapabilityDiscovery::new(known));
     let policy = PolicyEvaluator::new(PolicyConstraints::default());
     let pipeline = PlanningPipeline::new(discovery, policy);
     let ctx = PlanningContext { internet_available: true, working_directory: cwd.to_string_lossy().to_string(), ..Default::default() };
 
-    let plan = pipeline.plan(&intent, &ctx, required).await?;
+    let plan = pipeline.plan(&intent, &ctx, vec![required_capability]).await?;
     println!("Plan generated: {} step(s), risk={}", plan.steps.len(), plan.risk_score.0);
 
     let tasks: Vec<Task> = plan.steps.iter()
@@ -108,13 +80,10 @@ async fn main() -> anyhow::Result<()> {
     let executor = Executor::new(registry, kernel.event_bus.clone());
 
     for task in workflow.graph.tasks.values() {
-        let mut params = HashMap::new();
-        params.insert("cwd".to_string(), serde_json::json!(cwd.to_string_lossy()));
-        if task.required_capability == "git.commit" {
-            params.insert("message".to_string(), serde_json::json!("ORBVYNX automated commit"));
-        }
+        let mut task_params = params.clone();
+        task_params.entry("cwd".to_string()).or_insert_with(|| serde_json::json!(cwd.to_string_lossy()));
 
-        let result = executor.execute(task, params).await?;
+        let result = executor.execute(task, task_params).await?;
         println!("Task {} -> {:?}", task.id, result.outcome);
         if let Some(output) = result.output {
             println!("  output: {output}");
@@ -125,5 +94,62 @@ async fn main() -> anyhow::Result<()> {
     }
 
     println!("ORBVYNX run complete.");
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    tracing_subscriber::fmt::init();
+    let cli = Cli::parse();
+
+    match cli.command {
+        Commands::Status => {
+            let (kernel, report) = orbvynx_kernel::Kernel::boot().await?;
+            println!("ORBVYNX status: booted in {}ms", report.total_millis);
+            println!("Registered modules: {}", kernel.module_registry.list().len());
+            println!("Event bus subscribers: {}", kernel.event_bus.subscriber_count());
+        }
+
+        Commands::Run { goal } => {
+            let goal_str = goal.join(" ");
+            if goal_str.trim().is_empty() {
+                anyhow::bail!("provide a goal, e.g. 'orbvynx run build my app'");
+            }
+            run_goal(goal_str, "git.status".to_string(), HashMap::new()).await?;
+        }
+
+        Commands::Git { action } => match action {
+            GitAction::Status => {
+                run_goal("git status".to_string(), "git.status".to_string(), HashMap::new()).await?;
+            }
+            GitAction::Commit { message } => {
+                let mut params = HashMap::new();
+                params.insert("message".to_string(), serde_json::json!(message));
+                run_goal("git commit".to_string(), "git.commit".to_string(), params).await?;
+            }
+            GitAction::Push => {
+                run_goal("git push".to_string(), "git.push".to_string(), HashMap::new()).await?;
+            }
+        },
+
+        Commands::Plugin { action } => match action {
+            PluginAction::List => {
+                let cwd = std::env::current_dir()?;
+                let mut plugin_registry = PluginRegistry::new();
+                let count = plugin_registry.load_from_directory(cwd.join("examples").join("plugins")).await.unwrap_or(0);
+                if count == 0 {
+                    println!("No plugins found in ./examples/plugins");
+                } else {
+                    println!("Found {count} plugin(s):");
+                    for name in plugin_registry.list() {
+                        if let Some(plugin) = plugin_registry.get(&name) {
+                            println!("  {} -> capability: {} ({})", plugin.manifest.name, plugin.manifest.capability_name, plugin.manifest.description);
+                        }
+                    }
+                }
+            }
+        },
+    }
+
     Ok(())
 }
