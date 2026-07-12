@@ -4,13 +4,19 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+description = "ORBVYNX Intent Engine: goal capture, validation, normalization"
 
 [dependencies]
+orbvynx-kernel = { path = "../kernel" }
+
+tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 uuid.workspace = true
 chrono.workspace = true
-anyhow.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 async-trait.workspace = true
+
+[dev-dependencies]
+tokio-test = "0.4"
