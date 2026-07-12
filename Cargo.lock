@@ -433,6 +433,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "orbvynx-sdk"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "orbvynx-executor",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-test",
+]
+
+[[package]]
 name = "orbvynx-security"
 version = "0.1.0"
 dependencies = [

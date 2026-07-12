@@ -12,6 +12,7 @@ members = [
     "crates/memory",
     "crates/security",
     "apps/cli",
+    "sdk",
 ]
 
 [workspace.package]
