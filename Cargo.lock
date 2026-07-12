@@ -422,14 +422,14 @@ dependencies = [
 name = "orbvynx-plugin-runtime"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "async-trait",
- "chrono",
+ "orbvynx-executor",
  "serde",
  "serde_json",
  "thiserror",
+ "tokio",
+ "tokio-test",
  "tracing",
- "uuid",
 ]
 
 [[package]]
