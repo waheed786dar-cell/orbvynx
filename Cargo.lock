@@ -405,12 +405,15 @@ dependencies = [
 name = "orbvynx-planner"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "chrono",
+ "orbvynx-intent",
+ "orbvynx-kernel",
  "serde",
  "serde_json",
  "thiserror",
+ "tokio",
+ "tokio-test",
  "tracing",
  "uuid",
 ]
