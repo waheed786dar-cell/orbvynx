@@ -1,4 +1,5 @@
 pub mod capability;
+pub mod capabilities;
 pub mod error;
 pub mod executor;
 pub mod result;
