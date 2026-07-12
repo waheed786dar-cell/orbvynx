@@ -79,6 +79,7 @@ mod tests {
     use std::collections::HashMap;
 
     #[tokio::test]
+    #[ignore = "spawns real git subprocess; run explicitly with -- --ignored"]
     async fn git_status_on_current_repo_succeeds() {
         let cap = GitStatusCapability;
         let mut params = HashMap::new();
