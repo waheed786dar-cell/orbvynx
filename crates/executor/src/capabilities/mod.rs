@@ -1,21 +1,36 @@
 pub mod android;
 pub mod archive;
+pub mod archive_ext;
+pub mod dataformats;
 pub mod filesystem;
 pub mod fsops;
 pub mod git;
+pub mod globops;
 pub mod hash;
 pub mod http;
 pub mod jsonops;
 pub mod system;
 pub mod text;
+pub mod versioning;
 
 pub use android::GradleBuildCapability;
 pub use archive::ZipCompressCapability;
+pub use archive_ext::{GzipCompressCapability, MimeGuessCapability};
+pub use dataformats::{CsvParseCapability, JsonToYamlCapability, TomlToJsonCapability, YamlToJsonCapability};
 pub use filesystem::{FilesystemReadCapability, FilesystemWriteCapability};
 pub use fsops::{FileDeleteCapability, FileExistsCapability, ListDirectoryCapability};
 pub use git::{GitCommitCapability, GitPushCapability, GitStatusCapability};
+pub use globops::GlobMatchCapability;
 pub use hash::Sha256Capability;
 pub use http::{HttpGetCapability, HttpPostCapability};
 pub use jsonops::{JsonParseCapability, JsonQueryCapability};
 pub use system::{CurrentTimeCapability, EnvGetCapability, UuidGenerateCapability};
 pub use text::{Base64DecodeCapability, Base64EncodeCapability, RegexMatchCapability, UrlEncodeCapability};
+pub use versioning::{SemverCompareCapability, SemverParseCapability};
+pub mod android_project;
+pub mod apk_inspect;
+pub mod gradle_project;
+
+pub use android_project::{ManifestParseCapability, ManifestPermissionCheckCapability};
+pub use apk_inspect::{ApkListEntriesCapability, ApkSizeReportCapability};
+pub use gradle_project::{GradleDependencyListCapability, GradleVersionCheckCapability};
