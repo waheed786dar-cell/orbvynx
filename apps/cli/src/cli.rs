@@ -9,22 +9,19 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Boot the kernel and print status (event bus, registries, uptime)
+    /// Boot the kernel and print status
     Status,
 
     /// Run an arbitrary goal through Intent -> Plan -> Workflow -> Executor
-    Run {
-        /// The goal, e.g. "build my app" or "commit changes"
-        goal: Vec<String>,
-    },
+    Run { goal: Vec<String> },
 
-    /// Git operations via the built-in git capabilities
+    /// Git operations
     Git {
         #[command(subcommand)]
         action: GitAction,
     },
 
-    /// Manage and inspect dynamically-loaded plugins
+    /// Manage dynamically-loaded plugins
     Plugin {
         #[command(subcommand)]
         action: PluginAction,
@@ -32,43 +29,101 @@ pub enum Commands {
 
     /// Compute a SHA-256 hash of text or a file
     Hash {
-        /// Raw text to hash (mutually exclusive with --file)
         text: Option<String>,
-        /// Path to a file to hash instead of raw text
         #[arg(short, long)]
         file: Option<String>,
     },
 
-    /// Make HTTP requests via the built-in http capabilities
+    /// HTTP requests
     Http {
         #[command(subcommand)]
         action: HttpAction,
+    },
+
+    /// Encode/decode text
+    Encode {
+        #[command(subcommand)]
+        action: EncodeAction,
+    },
+
+    /// Filesystem inspection
+    Fs {
+        #[command(subcommand)]
+        action: FsAction,
+    },
+
+    /// JSON inspection
+    Json {
+        #[command(subcommand)]
+        action: JsonAction,
+    },
+
+    /// System utilities (UUID, current time, env vars)
+    Sys {
+        #[command(subcommand)]
+        action: SysAction,
     },
 }
 
 #[derive(Subcommand)]
 pub enum GitAction {
-    /// Show working tree status
     Status,
-    /// Stage all changes and commit
     Commit {
         #[arg(short, long, default_value = "ORBVYNX automated commit")]
         message: String,
     },
-    /// Push to the configured remote
     Push,
 }
 
 #[derive(Subcommand)]
 pub enum PluginAction {
-    /// List all discovered plugins and their capability names
     List,
 }
 
 #[derive(Subcommand)]
 pub enum HttpAction {
-    /// Perform an HTTP GET request
-    Get {
-        url: String,
+    Get { url: String },
+}
+
+#[derive(Subcommand)]
+pub enum EncodeAction {
+    /// Base64-encode text
+    Base64 { text: String },
+    /// Base64-decode text
+    Base64Decode { text: String },
+    /// URL-encode text
+    Url { text: String },
+}
+
+#[derive(Subcommand)]
+pub enum FsAction {
+    /// List directory contents
+    List {
+        path: String,
+        #[arg(short, long, default_value_t = 1)]
+        depth: u64,
     },
+    /// Check if a path exists
+    Exists { path: String },
+}
+
+#[derive(Subcommand)]
+pub enum JsonAction {
+    /// Validate and pretty-print JSON text
+    Parse { text: String },
+    /// Query a dotted path in a JSON file's contents
+    Query {
+        text: String,
+        path: String,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum SysAction {
+    /// Generate a random UUID v4
+    Uuid,
+    /// Print the current time (ISO 8601 + Unix seconds)
+    Time,
+    /// Read an environment variable
+    Env { key: String },
 }
